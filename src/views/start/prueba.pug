@@ -1,0 +1,262 @@
+extends ../layout/index
+
+block contenido
+    div(class="bg-white shadow-md rounded-lg overflow-hidden")
+        div(class="px-4 py-5 sm:px-6")
+            h1(class="text-3xl font-extrabold text-gray-900 text-center") Algoritmo de Dijkstra
+            p(class="mt-2 text-center text-sm text-gray-600") Descubre el camino más corto en grafos ponderados
+
+    div(class="mt-8 grid grid-cols-1 md:grid-cols-2 gap-9")
+        div(class="bg-white shadow-md rounded-lg overflow-hidden")
+            div(class="px-4 py-7 sm:px-6")
+                h2(class="text-xl font-semibold mb-4") Explicación
+                p(class="mb-4") Este algoritmo fue creado por uno de los padres de la computación, Edger W. Dijkstra, en 1956. Es utilizado para encontrar el camino más corto entre nodos en un grafo ponderado, y tiene aplicaciones en áreas como redes de computadoras, planificación de rutas y optimización de recursos.
+                p La forma en que funciona es que a cada nodo se le asigna una distancia desde el nodo inicial, y se actualizan las distancias a medida que se encuentran caminos más cortos. Finalmente, se utiliza esta información para reconstruir la ruta más corta desde el nodo inicial hasta el nodo final.
+
+        div(class="bg-white shadow-md rounded-lg overflow-hidden")
+            div(class="px-4 py-7 sm:px-6")
+                h2(class="text-xl font-semibold mb-4") Crear Vértices y Aristas
+                div
+                    label(for="positionX") Coordenada X: 
+                    input(type="number" id="positionX" required min="0" max="100" class="mb-4 border rounded px-2 py-1")
+                div
+                    label(for="positionY") Coordenada Y: 
+                    input(type="number" id="positionY" required min="0" max="100" class="mb-4 border rounded px-2 py-1")
+                div
+                    label(for="nameVertice") Nombre del Vértice: 
+                    input(type="text" id="nameVertice" required class="mb-4 border rounded px-2 py-1")
+                button(id="btnCrearV" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded") Crear Vértice
+
+                h2(class="text-xl font-semibold mb-4 mt-6") Crear Arista
+                div
+                    label(for="initialV") Vértice Inicial: 
+                    select(id="initialV" class="mb-4 border rounded px-2 py-1")
+                        option(value='') Seleccionar
+                div
+                    label(for="finalV") Vértice Final: 
+                    select(id="finalV" class="mb-4 border rounded px-2 py-1")
+                        option(value='') Seleccionar
+                button(id="btnCrearE" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded") Crear Arista
+            div(class="px-4 py-7 sm:px-6")
+                h2(class="text-xl font-semibold mb-4") Calcular Ruta
+                div
+                    label(for="initialVC") Vértice Inicial: 
+                    select(id="initialVC" class="mb-4 border rounded px-2 py-1")
+                        option(value='') Seleccionar
+                div
+                    label(for="finalVC") Vértice Final: 
+                    select(id="finalVC" class="mb-4 border rounded px-2 py-1")
+                        option(value='') Seleccionar
+                button(id="btnCalcRoute" class="w-full bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded") Calcular Ruta
+                div(id="distance" class="mt-4 text-center hidden") Peso total: <strong></strong> | Ruta: <strong></strong>
+
+    canvas#mapa(class="border-2 bg-white border-gray-300 mt-4" style="width: 800px; height: 800px;")
+    
+    script.
+        var canvas = document.getElementById("mapa");
+        var ctx = canvas.getContext("2d");
+        var coordenadas = {};
+        var grafo = {};
+
+        function sizeCanvas(size = 800) {
+            canvas.width = size;
+            canvas.height = size;
+            ctx.fillStyle = "#ffffff"; // Color de fondo
+            ctx.fillRect(0, 0, canvas.width, canvas.height); // Rellenar el canvas
+            drawGrid();
+        }
+
+        function drawGrid(size = 800) {
+            ctx.strokeStyle = "#F5F5F5";
+            ctx.lineWidth = 1;
+
+            for (var x = 0; x <= size; x += 6) {
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, size);
+            }
+
+            for (var y = 0; y <= size; y += 6) {
+                ctx.moveTo(0, y);
+                ctx.lineTo(size, y);
+            }
+
+            ctx.stroke();
+        }
+
+        function drawVertex(x, y, r = 7, nameOfVertex, size = 800) {
+            let escala = Math.round(size / 100);
+            let xPixel = x * escala;
+            let yPixel = y * escala;
+
+            if (ctx) {
+                ctx.fillStyle = "#FF0000"; // Color del vértice (rojo)
+                ctx.beginPath();
+                ctx.arc(xPixel, size - yPixel, r, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.textAlign = "center";
+                ctx.font = "10pt Verdana";
+                ctx.fillStyle = "#000000"; // Color del texto (blanco)
+                ctx.fillText(nameOfVertex, xPixel, size - yPixel + 15);
+            }
+        }
+
+        function drawEdge(x1, y1, x2, y2, peso, isShortestPath = false) {
+            
+            const escala = Math.round(800 / 100);
+            const x1Pixel = x1 * escala;
+            const y1Pixel = 800 - (y1 * escala);
+            const x2Pixel = x2 * escala;
+            const y2Pixel = 800 - (y2 * escala);
+            
+            ctx.strokeStyle = isShortestPath ? "#FF0000" : "#000000";
+            ctx.lineWidth = isShortestPath ? 3 : 1;
+
+            ctx.beginPath();
+            ctx.moveTo(x1Pixel, y1Pixel);
+            ctx.lineTo(x2Pixel, y2Pixel);
+            ctx.stroke();
+
+            if (peso) {
+                ctx.fillStyle = "#000000";
+                ctx.font = "10pt Verdana";
+                let midX = (x1Pixel + x2Pixel) / 2;
+                let midY = (y1Pixel + y2Pixel) / 2;
+                ctx.fillText(peso, midX, midY);
+            }
+        }
+
+        function fillSelects() {
+            const nodos = Object.keys(grafo);
+            const selects = [document.getElementById("initialV"), document.getElementById("finalV"), document.getElementById("initialVC"), document.getElementById("finalVC")];
+
+            selects.forEach(select => {
+                select.innerHTML = '<option value="">...</option>';
+                nodos.forEach(nodo => {
+                    const option = document.createElement("option");
+                    option.value = nodo;
+                    option.textContent = nodo;
+                    select.appendChild(option);
+                });
+            });
+        }
+
+        document.addEventListener("DOMContentLoaded", () => {
+            sizeCanvas();
+            drawGrid();
+
+            document.getElementById("btnCrearV").addEventListener("click", (e) => {
+                e.preventDefault();
+                let x = parseInt(document.getElementById("positionX").value);
+                let y = parseInt(document.getElementById("positionY").value);
+                let nameV = document.getElementById("nameVertice").value;
+
+                if (x >= 0 && y >= 0 && x <= 100 && y <= 100 && nameV) {
+                    coordenadas[nameV] = [x, y];
+                    grafo[nameV] = {};
+                    drawVertex(x, y, 7, nameV, 800); 
+                    fillSelects();
+                } else {
+                    alert("Por favor introduce los datos.");
+                }
+            });
+
+            document.getElementById("btnCrearE").addEventListener("click", (e) => {
+                e.preventDefault();
+                let initialV = document.getElementById("initialV").value;
+                let finalV = document.getElementById("finalV").value;
+
+                if (initialV && finalV && initialV !== finalV) {
+                    let x1 = coordenadas[initialV][0];
+                    let y1 = coordenadas[initialV][1];
+                    let x2 = coordenadas[finalV][0];
+                    let y2 = coordenadas[finalV][1];
+                    let peso = Math.round(Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2)));
+
+                    grafo[initialV][finalV] = peso;
+                    grafo[finalV][initialV] = peso;
+                
+                    drawEdge(x1, y1, x2, y2, peso);
+                    clearFormData();
+                } else {
+                    alert("Por favor introduce los datos.");
+                }
+            });
+
+            document.getElementById("btnCalcRoute").addEventListener("click", (e) => {
+                e.preventDefault();
+                let initialV = document.getElementById("initialVC").value;
+                let finalV = document.getElementById("finalVC").value;
+
+                if (initialV && finalV && initialV !== finalV) {
+                    let dks = dijkstra(grafo, initialV, finalV);
+                    let distance = dks["distancia"];
+                    let route = dks["ruta"];
+
+                    for (let i = 0; i < route.length; i++) {
+                        if (i < route.length - 1) {
+                            drawEdge(
+                                coordenadas[route[i]][0],
+                                coordenadas[route[i]][1],
+                                coordenadas[route[i + 1]][0],
+                                coordenadas[route[i + 1]][1],
+                                null,
+                                true
+                            );
+                        }
+                    }
+                    document.getElementById("distance").innerHTML = `<strong>Peso total:</strong> ${distance}<br><strong>Ruta:</strong> (${route})`;
+                    document.getElementById("distance").style.display = 'block';
+                } else {
+                    alert("¡Ya estás en tu destino!");
+                }
+            });
+        });
+
+        const dijkstra = (grafo, nodoInicial, nodoFinal) => {
+            let pesos = {};
+            const nodosPadre = {};
+            const procesados = [];
+            const colaPrioridad = new Set();
+
+            Object.keys(grafo).forEach(nodo => {
+                pesos[nodo] = Infinity;
+                nodosPadre[nodo] = null;
+                colaPrioridad.add(nodo);
+            });
+
+            pesos[nodoInicial] = 0;
+
+            while (colaPrioridad.size) {
+                let nodoActual = [...colaPrioridad].reduce((menor, nodo) => {
+                    return pesos[nodo] < pesos[menor] ? nodo : menor;
+            });
+
+            if (nodoActual === nodoFinal) break;
+
+            colaPrioridad.delete(nodoActual);
+
+            for (let vecino in grafo[nodoActual]) {
+                let pesoNuevo = pesos[nodoActual] + grafo[nodoActual][vecino];
+                if (pesoNuevo < pesos[vecino]) {
+                    pesos[vecino] = pesoNuevo;
+                    nodosPadre[vecino] = nodoActual;
+                    }
+                }   
+            }
+        const ruta = [];
+        let nodo = nodoFinal;
+        while (nodo) {
+            ruta.push(nodo);
+            nodo = nodosPadre[nodo];
+        }
+        return { distancia: pesos[nodoFinal], ruta: ruta.reverse() };
+        };
+
+
+        const nodoPesoMenor = (pesos, procesados) => {
+            return Object.keys(pesos).reduce((pesoMenor, nodo) => {
+                if (procesados.includes(nodo)) return pesoMenor;
+                return (pesoMenor === null || pesos[nodo] < pesos[pesoMenor]) ? nodo : pesoMenor;
+            }, null);
+        };
